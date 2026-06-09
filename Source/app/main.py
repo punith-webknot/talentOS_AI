@@ -24,3 +24,4 @@ if __name__ == "__main__":
             config,
         )
         print(f"ai: {result}")
+        # print(f"ai: {result['messages'][-1]}")

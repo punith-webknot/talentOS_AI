@@ -30,8 +30,7 @@ Rules:
 - If the request clearly belongs to one agent,
   route directly to that agent.
 - Do not ask unnecessary questions.
-- If the request is ambiguous,
-  ask at most 2 follow-up questions.
+- If the request is ambiguous, ask a question.
 - When routing:
     messages=[]
 - When asking follow-ups:

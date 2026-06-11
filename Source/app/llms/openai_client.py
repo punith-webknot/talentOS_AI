@@ -1,9 +1,8 @@
+import os
 from langchain_openai import ChatOpenAI
+from source.app.config.settings import settings
 
-from app.api.schemas import SupervisorResponse
+# Bind key so LangChain picks it up automatically
+os.environ["OPENAI_API_KEY"] = settings.openai_api_key
 
-def get_supervisor_llm():
-    return ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-    ).with_structured_output(SupervisorResponse)
+model = ChatOpenAI(model="gpt-4.1-mini")

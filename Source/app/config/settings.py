@@ -19,7 +19,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
     openai_api_key: str
-    mcp_url: str = "http://localhost:8000/mcp"
-    model_name: str = "gpt-4.1-mini"
+    mcp_url: str
+    model_name: str
 
 settings = Settings()

@@ -2,11 +2,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from Source.app.agents.interview_agent import create_interview_agent
 from Source.app.agents.job_agent import create_job_agent
 from Source.app.agents.supervisor_agent import create_supervisor_agent
 from Source.app.api.router import api_router
-from Source.app.tools.agent_tools import get_interview_agent_tool, get_job_agent_tool
+from Source.app.tools.agent_tools import get_job_agent_tool
 from Source.app.tools.mcp_client import init_mcp_client
 
 @asynccontextmanager
@@ -18,16 +17,11 @@ async def lifespan(app: FastAPI):
     _, mcp_tools = await init_mcp_client()
     
     job_agent = create_job_agent(mcp_tools)
-    interview_agent = create_interview_agent()
-    
     job_tool = get_job_agent_tool(job_agent)
-    interview_tool = get_interview_agent_tool(interview_agent)
-    
-    supervisor_agent = create_supervisor_agent(job_tool, interview_tool)
+    supervisor_agent = create_supervisor_agent(job_tool)
     
     # Store agents globally in the FastAPI app state
     app.state.job_agent = job_agent
-    app.state.interview_agent = interview_agent
     app.state.supervisor_agent = supervisor_agent
     
     yield

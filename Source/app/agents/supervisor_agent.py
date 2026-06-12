@@ -4,12 +4,12 @@ from langgraph.checkpoint.memory import InMemorySaver
 from Source.app.llms.openai_client import model
 from Source.app.prompts.supervisor_agent_prompt import SUPERVISOR_PROMPT
 
-def create_supervisor_agent(job_tool, interview_tool):
+def create_supervisor_agent(job_tool):
     checkpointer = InMemorySaver()
     
     return create_agent(
         model,
-        tools=[job_tool, interview_tool], 
+        tools=[job_tool], 
         system_prompt=SUPERVISOR_PROMPT,
         middleware=[
             SummarizationMiddleware(

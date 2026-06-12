@@ -7,7 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain.messages import AIMessageChunk
 
 
-from source.app.api.dependencies import get_supervisor_agent
+from Source.app.api.dependencies import get_supervisor_agent
 
 router = APIRouter()
 
@@ -38,8 +38,8 @@ async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> 
 
 @router.post("/stream")
 async def stream_chat_endpoint(
-    payload: ChatRequest, 
-    supervisor_agent = Depends(get_supervisor_agent) 
+    payload: ChatRequest,
+    supervisor_agent=Depends(get_supervisor_agent),
 ):
     """Exposes real-time agent generation streaming."""
     return StreamingResponse(

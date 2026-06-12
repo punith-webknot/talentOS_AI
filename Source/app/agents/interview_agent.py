@@ -1,6 +1,6 @@
 from langchain.agents import create_agent
-from source.app.llms.openai_client import model
-from source.app.prompts.interview_agent_prompt import INTERVIEW_AGENT_PROMPT
+from Source.app.llms.openai_client import model
+from Source.app.prompts.interview_agent_prompt import INTERVIEW_AGENT_PROMPT
 
 def create_interview_agent():
     """

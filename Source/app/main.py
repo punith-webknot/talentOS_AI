@@ -1,13 +1,13 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from source.app.tools.mcp_client import init_mcp_client
-from source.app.tools.agent_tools import get_job_agent_tool, get_interview_agent_tool
-from source.app.agents.job_agent import create_job_agent
-from source.app.agents.interview_agent import create_interview_agent
-from source.app.agents.supervisor_agent import create_supervisor_agent
+from fastapi import FastAPI
 
-from source.app.api.router import api_router
+from Source.app.agents.interview_agent import create_interview_agent
+from Source.app.agents.job_agent import create_job_agent
+from Source.app.agents.supervisor_agent import create_supervisor_agent
+from Source.app.api.router import api_router
+from Source.app.tools.agent_tools import get_interview_agent_tool, get_job_agent_tool
+from Source.app.tools.mcp_client import init_mcp_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     directly to the app.state.This guarantees that the agents are loaded exactly once into 
     memory when the server starts, and then shared efficiently across all your different API endpoints."""
     
-    client, mcp_tools = await init_mcp_client()
+    _, mcp_tools = await init_mcp_client()
     
     job_agent = create_job_agent(mcp_tools)
     interview_agent = create_interview_agent()
@@ -39,4 +39,4 @@ app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("source.app.main:app", host="127.0.0.1", port=8080, reload=True)
+    uvicorn.run("Source.app.main:app", host="127.0.0.1", port=8080, reload=True)

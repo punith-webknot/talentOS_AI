@@ -21,5 +21,6 @@ class Settings(BaseSettings):
     openai_api_key: str
     mcp_url: str
     model_name: str
+    database_uri: str
 
 settings = Settings()

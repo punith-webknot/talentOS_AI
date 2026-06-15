@@ -7,6 +7,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain.messages import AIMessageChunk
 
 
+from Source.app.agents.context import AgentContext
 from Source.app.api.dependencies import get_supervisor_agent
 
 router = APIRouter()
@@ -17,10 +18,12 @@ class ChatRequest(BaseModel):
 
 async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> AsyncGenerator[str, None]:
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+    context = AgentContext(thread_id=thread_id)
 
     async for chunk in supervisor_agent.astream(
         {"messages": [{"role": "user", "content": user_query}]},
         config=config,
+        context=context,
         stream_mode=["messages"],
         version="v2"
     ):

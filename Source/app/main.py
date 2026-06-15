@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from Source.app.agents.job_agent import create_job_agent
 from Source.app.agents.supervisor_agent import create_supervisor_agent
 from Source.app.api.router import api_router
+from Source.app.config.settings import settings
 from Source.app.tools.agent_tools import get_job_agent_tool
 from Source.app.tools.mcp_client import init_mcp_client
 
@@ -15,16 +17,17 @@ async def lifespan(app: FastAPI):
     memory when the server starts, and then shared efficiently across all your different API endpoints."""
     
     _, mcp_tools = await init_mcp_client()
-    
-    job_agent = create_job_agent(mcp_tools)
-    job_tool = get_job_agent_tool(job_agent)
-    supervisor_agent = create_supervisor_agent(job_tool)
-    
-    # Store agents globally in the FastAPI app state
-    app.state.job_agent = job_agent
-    app.state.supervisor_agent = supervisor_agent
-    
-    yield
+
+    async with AsyncPostgresSaver.from_conn_string(settings.database_uri) as checkpointer:
+        await checkpointer.setup()
+        job_agent = create_job_agent(mcp_tools, checkpointer)
+        job_tool = get_job_agent_tool(job_agent)
+        supervisor_agent = create_supervisor_agent(job_tool, checkpointer)
+
+        app.state.job_agent = job_agent
+        app.state.supervisor_agent = supervisor_agent
+
+        yield
 
 app = FastAPI(title="TalentOS AI API", lifespan=lifespan)
 

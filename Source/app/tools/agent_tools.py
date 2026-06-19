@@ -8,7 +8,7 @@ def get_job_agent_tool(job_agent_instance):
 
     @tool
     async def job_agent_tool(request: str, runtime: ToolRuntime[AgentContext]) -> str:
-        """Use this tool to draft or refine job descriptions and job postings."""
+        """Delegate to the JD Management Agent for job descriptions and job postings."""
         human_messages = [m for m in runtime.state["messages"] if m.type == "human"]
         latest_user_message = human_messages[-1].content if human_messages else request
         prompt = (

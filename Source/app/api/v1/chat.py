@@ -3,8 +3,8 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from langchain_core.runnables import RunnableConfig
 from langchain.messages import AIMessageChunk
+from langchain_core.runnables import RunnableConfig
 
 
 from Source.app.agents.context import AgentContext
@@ -12,9 +12,11 @@ from Source.app.api.dependencies import get_supervisor_agent
 
 router = APIRouter()
 
+
 class ChatRequest(BaseModel):
     message: str
     thread_id: str = "1"
+
 
 async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> AsyncGenerator[str, None]:
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
@@ -38,6 +40,7 @@ async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> 
                             yield json.dumps({"type": "stream", "steps": [{"type": "tool_args", "content": tc["args"]}], "final": []}) + "\n"
                 elif token.text:
                     yield json.dumps({"type": "stream", "steps": [], "final": [{"type": "markdown", "content": token.text}]}) + "\n"
+
 
 @router.post("/stream")
 async def stream_chat_endpoint(

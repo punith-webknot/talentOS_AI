@@ -1,8 +1,21 @@
-import os
+import logging
+from typing import Optional
+
 from langchain_openai import ChatOpenAI
-from Source.app.config.settings import settings
 
-# Bind key so LangChain picks it up automatically
-os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+from Source.app.config.settings import get_settings
 
-model = ChatOpenAI(model=settings.model_name)
+logger = logging.getLogger(__name__)
+_model: Optional[ChatOpenAI] = None
+
+
+def get_model() -> ChatOpenAI:
+    global _model
+    if _model is None:
+        settings = get_settings()
+        logger.info("Initializing OpenAI chat model '%s'", settings.model_name)
+        _model = ChatOpenAI(
+            model=settings.model_name,
+            api_key=settings.openai_api_key,
+        )
+    return _model

@@ -1,7 +1,7 @@
 from langchain.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from Source.app.llms.openai_client import model
+from Source.app.llms.openai_client import get_model
 
 
 class ResumeEvaluation(BaseModel):
@@ -60,6 +60,7 @@ The JSON must exactly match this structure:
 Process the evaluation and return ONLY the raw JSON object.
     """
 
+    model = get_model()
     model_with_structure = model.with_structured_output(ResumeEvaluation)
 
     return await model_with_structure.ainvoke([

@@ -150,6 +150,10 @@ activemq-data/
 # Environments
 .env
 .envrc
+
+# Gmail OAuth (local secrets — never commit)
+credentials.json
+token.json
 .venv
 env/
 venv/

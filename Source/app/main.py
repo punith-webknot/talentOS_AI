@@ -7,11 +7,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 
 from Source.app.agents.job_agent import create_job_agent
 from Source.app.agents.supervisor_agent import create_supervisor_agent
 from Source.app.api.router import api_router
 from Source.app.config.settings import get_settings
+from Source.app.db.gmail_token_schema import setup_gmail_token_schema
 from Source.app.tools.agent_tools import get_job_agent_tool
 from Source.app.tools.mcp_client import init_mcp_client
 
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Initialize long-lived app dependencies once at startup."""
     mcp_client = None
+    db_pool = None
     started = False
     settings = get_settings()
 
@@ -40,7 +43,12 @@ async def lifespan(app: FastAPI):
         mcp_client, mcp_tools = await init_mcp_client()
         app.state.mcp_client = mcp_client
 
-        logger.info("Connecting to Postgres checkpointer.")
+        logger.info("Connecting to Postgres.")
+        db_pool = AsyncConnectionPool(settings.database_uri)
+        await db_pool.open()
+        await setup_gmail_token_schema(db_pool)
+        app.state.db_pool = db_pool
+
         async with AsyncPostgresSaver.from_conn_string(settings.database_uri) as checkpointer:
             await checkpointer.setup()
             logger.info("Postgres checkpointer initialized.")
@@ -60,6 +68,13 @@ async def lifespan(app: FastAPI):
             raise RuntimeError("Application startup failed. Check logs for details.") from exc
         raise
     finally:
+        if db_pool is not None:
+            try:
+                await db_pool.close()
+                logger.info("Postgres connection pool closed.")
+            except Exception:
+                logger.exception("Failed to close Postgres pool cleanly.")
+
         close_client = getattr(mcp_client, "aclose", None)
         if callable(close_client):
             try:

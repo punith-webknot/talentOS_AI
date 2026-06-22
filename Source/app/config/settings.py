@@ -27,6 +27,28 @@ class Settings(BaseSettings):
     model_name: str
     database_uri: str
 
+    # credentials.json fields
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+    gmail_project_id: str = ""
+    gmail_auth_uri: str = "https://accounts.google.com/o/oauth2/auth"
+    gmail_token_uri: str = "https://oauth2.googleapis.com/token"
+    gmail_auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
+    gmail_redirect_uri: str = "http://localhost"
+
+    def gmail_oauth_client_config(self) -> dict:
+        return {
+            "installed": {
+                "client_id": self.gmail_client_id,
+                "project_id": self.gmail_project_id,
+                "auth_uri": self.gmail_auth_uri,
+                "token_uri": self.gmail_token_uri,
+                "auth_provider_x509_cert_url": self.gmail_auth_provider_x509_cert_url,
+                "client_secret": self.gmail_client_secret,
+                "redirect_uris": [self.gmail_redirect_uri],
+            }
+        }
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

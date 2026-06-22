@@ -1,10 +1,15 @@
+import logging
+
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-from Source.app.config.settings import settings
+from Source.app.config.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 async def init_mcp_client():
-    print("Connecting to MCP Recruitment Tool Server...")
+    settings = get_settings()
+    logger.info("Connecting to MCP Recruitment Tool Server at %s", settings.mcp_url)
     client = MultiServerMCPClient(
         {
             "recruitment_services": {
@@ -16,8 +21,8 @@ async def init_mcp_client():
     try:
         mcp_tools = await client.get_tools()
     except (Exception, ExceptionGroup) as exc:
-        print(f" MCP server unavailable: {exc}. Starting without recruitment tools.\n")
+        logger.warning("MCP server unavailable; starting without recruitment tools. error=%s", exc)
         return None, []
 
-    print(f" Successfully loaded {len(mcp_tools)} tools from MCP Server.\n")
+    logger.info("Successfully loaded %d tools from MCP Server.", len(mcp_tools))
     return client, mcp_tools

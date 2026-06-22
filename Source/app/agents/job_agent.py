@@ -1,12 +1,24 @@
+import logging
+
 from langchain.agents import create_agent
-from Source.app.llms.openai_client import model
+
+from Source.app.llms.openai_client import get_model
 from Source.app.prompts.job_agent_prompt import JOB_AGENT_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 def create_job_agent(mcp_tools: list, checkpointer):
-    return create_agent(
-        model,
-        tools=mcp_tools,
-        system_prompt=JOB_AGENT_PROMPT,
-        checkpointer=checkpointer,
-    )
+    try:
+        model = get_model()
+        if not mcp_tools:
+            logger.warning("Job agent initialized without MCP tools; job operations may be unavailable.")
+        return create_agent(
+            model,
+            tools=mcp_tools,
+            system_prompt=JOB_AGENT_PROMPT,
+            checkpointer=checkpointer,
+        )
+    except Exception:
+        logger.exception("Failed to create job agent.")
+        raise

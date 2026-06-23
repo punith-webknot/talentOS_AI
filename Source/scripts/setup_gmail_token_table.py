@@ -20,12 +20,8 @@ logger = logging.getLogger(__name__)
 
 async def main() -> None:
     settings = get_settings()
-    pool = AsyncConnectionPool(settings.database_uri)
-    await pool.open()
-    try:
+    async with AsyncConnectionPool(settings.database_uri, open=False) as pool:
         await setup_gmail_token_schema(pool)
-    finally:
-        await pool.close()
     logger.info("Gmail OAuth tokens table created successfully.")
 
 

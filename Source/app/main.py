@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         app.state.mcp_client = mcp_client
 
         logger.info("Connecting to Postgres.")
-        db_pool = AsyncConnectionPool(settings.database_uri)
+        db_pool = AsyncConnectionPool(settings.database_uri, open=False)
         await db_pool.open()
         await setup_gmail_token_schema(db_pool)
         app.state.db_pool = db_pool

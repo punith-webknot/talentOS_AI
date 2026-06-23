@@ -7,6 +7,7 @@ from psycopg_pool import AsyncConnectionPool
 logger = logging.getLogger(__name__)
 
 GMAIL_OAUTH_TOKENS_TABLE = "gmail_oauth_tokens"
+GMAIL_OAUTH_PENDING_TABLE = "gmail_oauth_pending"
 
 # token.json field -> column name
 TOKEN_JSON_COLUMNS = (
@@ -36,11 +37,20 @@ CREATE TABLE IF NOT EXISTS {GMAIL_OAUTH_TOKENS_TABLE} (
 );
 """
 
+CREATE_GMAIL_OAUTH_PENDING_SQL = f"""
+CREATE TABLE IF NOT EXISTS {GMAIL_OAUTH_PENDING_TABLE} (
+    user_id TEXT PRIMARY KEY,
+    code_verifier TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
 
 async def setup_gmail_token_schema(pool: AsyncConnectionPool) -> None:
-    """Create the Gmail OAuth tokens table if it does not exist."""
+    """Create Gmail OAuth tables if they do not exist."""
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(CREATE_GMAIL_OAUTH_TOKENS_SQL)
+            await cur.execute(CREATE_GMAIL_OAUTH_PENDING_SQL)
         await conn.commit()
-    logger.info("Table '%s' is ready.", GMAIL_OAUTH_TOKENS_TABLE)
+    logger.info("Tables '%s' and '%s' are ready.", GMAIL_OAUTH_TOKENS_TABLE, GMAIL_OAUTH_PENDING_TABLE)

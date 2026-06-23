@@ -2,19 +2,32 @@
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 import asyncio
+=======
+import os
+>>>>>>> dae2c0c (half cooked gmail service)
 from pathlib import Path
 from typing import Literal
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+<<<<<<< HEAD
 from google_auth_oauthlib.flow import InstalledAppFlow
+=======
+from google_auth_oauthlib.flow import Flow, InstalledAppFlow
+>>>>>>> dae2c0c (half cooked gmail service)
 from psycopg_pool import AsyncConnectionPool
 
 from Source.app.config.settings import get_settings
 from Source.app.db.gmail_token_repository import (
+<<<<<<< HEAD
     fetch_gmail_token_by_user_id,
     upsert_gmail_token,
+=======
+    get_gmail_credentials,
+    upsert_gmail_credentials,
+>>>>>>> dae2c0c (half cooked gmail service)
 )
 
 GMAIL_SCOPES = ["https://mail.google.com/"]
@@ -77,6 +90,81 @@ def _run_local_oauth_flow(scopes: list[str]) -> Credentials:
     return flow.run_local_server(port=0, open_browser=False)
 
 
+def _ensure_gmail_oauth_configured() -> None:
+    settings = get_settings()
+    if not settings.gmail_client_id or not settings.gmail_client_secret:
+        raise RuntimeError(
+            "Gmail OAuth client is not configured. "
+            "Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in .env."
+        )
+
+
+def _allow_http_oauth_for_local_dev(redirect_uri: str) -> None:
+    """oauthlib requires HTTPS unless this is set for local http:// callbacks."""
+    if redirect_uri.startswith("http://"):
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+
+def create_gmail_oauth_flow(redirect_uri: str | None = None) -> Flow:
+    """Build a Google OAuth flow for the Gmail web callback."""
+    _ensure_gmail_oauth_configured()
+    settings = get_settings()
+    resolved_redirect_uri = redirect_uri or settings.gmail_oauth_callback_uri
+    _allow_http_oauth_for_local_dev(resolved_redirect_uri)
+    return Flow.from_client_config(
+        settings.gmail_oauth_client_config(),
+        scopes=GMAIL_SCOPES,
+        redirect_uri=resolved_redirect_uri,
+    )
+
+
+def build_gmail_authorization_url(flow: Flow, user_id: str) -> tuple[str, str]:
+    """Return the Google login URL and PKCE verifier for the user."""
+    authorization_url, _ = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+        state=user_id,
+    )
+    if not flow.code_verifier:
+        raise RuntimeError("OAuth flow did not generate a PKCE code verifier.")
+
+    return authorization_url, flow.code_verifier
+
+
+def exchange_authorization_code(
+    flow: Flow,
+    authorization_response: str,
+    code_verifier: str,
+) -> Credentials:
+    """Exchange the OAuth callback URL for Gmail credentials."""
+    flow.code_verifier = code_verifier
+    flow.fetch_token(authorization_response=authorization_response)
+    return flow.credentials
+
+
+async def get_google_credentials_for_user(
+    pool: AsyncConnectionPool,
+    user_id: str,
+    scopes: list[str] | None = None,
+) -> Credentials | None:
+    """Load Gmail credentials for a user from the database, refreshing if needed."""
+    scopes = scopes or GMAIL_SCOPES
+    creds = await get_gmail_credentials(pool, user_id)
+    if creds is None:
+        return None
+
+    if creds.valid:
+        return creds
+
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        await upsert_gmail_credentials(pool, user_id, creds)
+        return creds
+
+    return None
+
+
 def get_google_credentials_from_env(
     token_file: str = DEFAULT_TOKEN_FILE,
     scopes: list[str] | None = None,
@@ -85,7 +173,11 @@ def get_google_credentials_from_env(
     Same behavior as langchain get_google_credentials, but reads the OAuth
     client config (credentials.json fields) from .env via Settings.
     """
+<<<<<<< HEAD
     _ensure_gmail_client_configured()
+=======
+    _ensure_gmail_oauth_configured()
+>>>>>>> dae2c0c (half cooked gmail service)
     settings = get_settings()
 
     scopes = scopes or GMAIL_SCOPES

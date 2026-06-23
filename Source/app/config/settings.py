@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     gmail_token_uri: str = "https://oauth2.googleapis.com/token"
     gmail_auth_provider_x509_cert_url: str = "https://www.googleapis.com/oauth2/v1/certs"
     gmail_redirect_uri: str = "http://localhost"
+    gmail_oauth_callback_uri: str = "http://127.0.0.1:8080/api/v1/gmail/oauth/callback"
 
     def gmail_oauth_client_config(self) -> dict:
         return {
@@ -45,7 +46,10 @@ class Settings(BaseSettings):
                 "token_uri": self.gmail_token_uri,
                 "auth_provider_x509_cert_url": self.gmail_auth_provider_x509_cert_url,
                 "client_secret": self.gmail_client_secret,
-                "redirect_uris": [self.gmail_redirect_uri],
+                "redirect_uris": [
+                    self.gmail_redirect_uri,
+                    self.gmail_oauth_callback_uri,
+                ],
             }
         }
 

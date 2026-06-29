@@ -2,7 +2,7 @@ import logging
 
 from langchain.agents import create_agent
 
-from Source.app.llms.openai_client import get_model
+from Source.app.llms.factory import get_model
 from Source.app.prompts.job_agent_prompt import JOB_AGENT_PROMPT
 
 logger = logging.getLogger(__name__)

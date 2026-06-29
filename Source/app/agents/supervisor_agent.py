@@ -4,7 +4,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
 
 from Source.app.agents.context import AgentContext
-from Source.app.llms.openai_client import get_model
+from Source.app.llms.factory import get_model
 from Source.app.prompts.supervisor_agent_prompt import SUPERVISOR_PROMPT
 
 logger = logging.getLogger(__name__)

@@ -21,8 +21,8 @@ def create_supervisor_agent(job_tool, checkpointer):
             middleware=[
                 SummarizationMiddleware(
                     model=model,
-                    trigger=("tokens", 50000),
-                    keep=("messages", 10),
+                    trigger={"tokens": 200000, "messages": 50},
+                    keep=("messages", 30),
                 )
             ],
             checkpointer=checkpointer,

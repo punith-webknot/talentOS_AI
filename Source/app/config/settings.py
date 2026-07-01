@@ -2,9 +2,9 @@ from pathlib import Path
 import logging
 from functools import lru_cache
 
-from typing import Literal, Self
+from typing import Self
 
-from pydantic import AliasChoices, Field, ValidationError, model_validator
+from pydantic import ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _SOURCE_DIR = Path(__file__).resolve().parents[2]
@@ -25,24 +25,16 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         populate_by_name=True,
     )
-    llm_provider: Literal["openai", "gemini"] = "openai"
     model_name: str
+    evaluation_model_name: str
     openai_api_key: str | None = None
-    google_api_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("google_api_key", "GOOGLE_API_KEY", "GEMINI_API_KEY"),
-    )
     mcp_url: str
     database_uri: str
 
     @model_validator(mode="after")
-    def validate_llm_credentials(self) -> Self:
-        if self.llm_provider == "openai" and not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER is 'openai'")
-        if self.llm_provider == "gemini" and not self.google_api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY (or GEMINI_API_KEY) is required when LLM_PROVIDER is 'gemini'"
-            )
+    def validate_openai_api_key(self) -> Self:
+        if not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required")
         return self
 
 

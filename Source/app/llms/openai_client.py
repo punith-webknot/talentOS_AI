@@ -7,9 +7,10 @@ from Source.app.config.settings import Settings
 logger = logging.getLogger(__name__)
 
 
-def create_openai_model(settings: Settings) -> ChatOpenAI:
-    logger.info("Initializing OpenAI chat model '%s'", settings.model_name)
+def create_openai_model(settings: Settings, model_name: str | None = None) -> ChatOpenAI:
+    resolved_model = model_name or settings.model_name
+    logger.info("Initializing OpenAI chat model '%s'", resolved_model)
     return ChatOpenAI(
-        model=settings.model_name,
+        model=resolved_model,
         api_key=settings.openai_api_key,
     )

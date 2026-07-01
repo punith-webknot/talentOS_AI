@@ -1,44 +1,41 @@
-import logging
-from typing import Literal, Optional, TypeVar
+from typing import Optional, TypeVar
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
-from Source.app.config.settings import Settings, get_settings
-from Source.app.llms.gemini_client import create_gemini_model
+from Source.app.config.settings import get_settings
 from Source.app.llms.openai_client import create_openai_model
 
-logger = logging.getLogger(__name__)
-
 _model: Optional[BaseChatModel] = None
-_model_provider: Optional[Literal["openai", "gemini"]] = None
+_evaluation_model: Optional[BaseChatModel] = None
+_evaluation_model_name: Optional[str] = None
 
 T = TypeVar("T", bound=BaseModel)
 
 
 def get_model() -> BaseChatModel:
-    global _model, _model_provider
+    global _model
 
-    settings = get_settings()
-    if _model is None or _model_provider != settings.llm_provider:
-        _model = _create_model(settings)
-        _model_provider = settings.llm_provider
+    if _model is None:
+        _model = create_openai_model(get_settings())
 
     return _model
 
 
-def get_structured_model(schema: type[T]) -> object:
-    model = get_model()
+def get_evaluation_model() -> BaseChatModel:
+    global _evaluation_model, _evaluation_model_name
+
     settings = get_settings()
-    if settings.llm_provider == "gemini":
-        return model.with_structured_output(schema, method="json_schema")
-    return model.with_structured_output(schema)
+    if _evaluation_model is None or _evaluation_model_name != settings.evaluation_model_name:
+        _evaluation_model = create_openai_model(settings, settings.evaluation_model_name)
+        _evaluation_model_name = settings.evaluation_model_name
+
+    return _evaluation_model
 
 
-def _create_model(settings: Settings) -> BaseChatModel:
-    if settings.llm_provider == "openai":
-        return create_openai_model(settings)
-    if settings.llm_provider == "gemini":
-        return create_gemini_model(settings)
+def get_structured_model(schema: type[T]) -> object:
+    return get_model().with_structured_output(schema)
 
-    raise ValueError(f"Unsupported LLM provider: {settings.llm_provider!r}")
+
+def get_evaluation_structured_model(schema: type[T]) -> object:
+    return get_evaluation_model().with_structured_output(schema)

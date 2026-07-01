@@ -1,16 +1,16 @@
 from langchain.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from Source.app.llms.factory import get_structured_model
+from Source.app.llms.factory import get_evaluation_structured_model
 
 
 class ResumeEvaluation(BaseModel):
-    """A resume evaluation with details."""
+    """A concise, high-signal resume evaluation."""
 
     resume_summary: str = Field(
-        description="A detailed, objective paragraph that summarizes the candidate's background, "
-        "explicitly evaluates them against the provided Custom Evaluation Criteria, "
-        "and calls out any major missing skills or red flags."
+        description="A hyper-concise, punchy Markdown summary of the candidate's alignment. "
+        "Strictly adhere to the Markdown schema provided in the system prompt. "
+        "Keep each bullet point to a single short sentence."
     )
     overall_score_percentage: int = Field(
         description="An integer from 0 to 100 representing the holistic fit"
@@ -22,28 +22,28 @@ async def evaluate_resume(
     custom_evaluation_criteria: str,
     jd_details: str,
 ) -> ResumeEvaluation:
+    # 1. Shortened and focused system message
     system_message = """
-    You are an elite, highly objective technical hiring manager and ATS evaluation engine. Your job is to deeply analyze a candidate's resume against a specific Job Description (JD) and a set of custom Evaluation Criteria provided by the hiring team.
+You are an objective technical ATS evaluation engine. Assess the candidate's resume against the Job Description (JD) and Custom Evaluation Criteria.
 
 <core_directives>
-1. SEMANTIC EVALUATION: Do NOT rely on simple keyword matching. Look for semantic evidence of the required skills, scale, impact, and competency.
-2. EVIDENCE-ANCHORING: Be harsh but fair. Do not hallucinate experience that isn't explicitly written or strongly implied.
-3. EXTREME SCANNABILITY: HR professionals are skimming this. The summary MUST be formatted using Markdown. You must use bullet points, bold text, and a rigid structure (Overview, Strong Matches, Gaps/Red Flags). Do not output a dense wall of text.
+1. SEMANTIC MATCHING: Look for actual engineering evidence, not just keywords.
+2. HYPER-CONCISE & PUNCHY: Write with extreme brevity. Avoid filler words. Every bullet point must be exactly one short sentence.
+3. SCANNABILITY: Use the strict Markdown structure below.
 </core_directives>
 
 <output_schema>
-You MUST return your entire response as a valid, parsable JSON object. Do not include markdown blocks like ```json outside the object.
-
-The JSON must exactly match this structure:
+You MUST return your response as a valid, parsable JSON object matching this exact structure:
 {
-  "resume_summary": "A Markdown-formatted evaluation. It MUST follow this exact structure:\n\n**Overview:** [1 sentence summarizing the candidate's core profile]\n\n**Strong Matches:**\n* [Bullet 1 evaluating specific criteria]\n* [Bullet 2 evaluating specific criteria]\n\n**Gaps & Concerns:**\n* [Bullet 1 calling out missing criteria or red flags]\n* [Bullet 2 calling out missing criteria or red flags]",
-  "overall_score_percentage": [Integer from 0 to 100 representing the holistic fit]
+  "resume_summary": "**Overview:** [1 short sentence summarizing the candidate's core profile]\n\n**Strong Matches:**\n* [1 short sentence on core technical alignment]\n* [1 short sentence on experience alignment]\n\n**Gaps & Concerns:**\n* [1 short sentence on a missing skill or red flag]\n* [1 short sentence on another gap]",
+  "overall_score_percentage": [Integer from 0 to 100]
 }
 </output_schema>
-    """
+"""
 
+    # 2. Force the human message to demand strict brevity
     human_message = f"""
-    Evaluate the following candidate based on the provided parameters.
+Evaluate this candidate. Be highly critical, punchy, and concise. Keep bullets to single sentences.
 
 <job_description>
 {jd_details}
@@ -57,10 +57,10 @@ The JSON must exactly match this structure:
 {resume_txt}
 </candidate_resume_text>
 
-Process the evaluation and return ONLY the raw JSON object.
-    """
+Return ONLY the raw structured JSON object.
+"""
 
-    model_with_structure = get_structured_model(ResumeEvaluation)
+    model_with_structure = get_evaluation_structured_model(ResumeEvaluation)
 
     return await model_with_structure.ainvoke([
         SystemMessage(content=system_message),

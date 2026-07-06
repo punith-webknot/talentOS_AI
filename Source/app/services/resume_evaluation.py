@@ -17,7 +17,7 @@ class ResumeEvaluation(BaseModel):
         description="An integer from 0 to 100 representing the holistic fit. "
         "If the candidate is rejected, this score should reflect a low or zero value."
     )
-    rejected_status: List[Literal["YOE", "BUDGET", "LOCATION", "NOTICE_PERIOD"]] = Field(
+    rejected_status: List[Literal["YOE", "BUDGET", "LOCATION", "NOTICE_PERIOD", "NONE"]] = Field(
         default_factory=list,
         description="If the candidate fails any mandatory custom evaluation criteria, "
         "populate this list with all applicable reason tags: 'YOE', 'BUDGET', 'LOCATION', or 'NOTICE_PERIOD'. "
@@ -35,7 +35,7 @@ async def evaluate_resume(
     custom_evaluation_criteria: str,
     jd_details: str,
 ) -> ResumeEvaluation:
-    # Place it directly here in the system message string
+
     system_message = """
 You are an objective technical ATS evaluation engine. Assess the candidate's resume against the Job Description (JD) and Custom Evaluation Criteria.
 
@@ -67,12 +67,12 @@ You MUST return your response as a valid, parsable JSON object matching this exa
 {
   "resume_summary": "**Overview:** [1 short sentence summarizing the candidate's core profile]\\n\\n**Strong Matches:**\\n* [1 short sentence on core technical alignment]\\n* [1 short sentence on experience alignment]\\n\\n**Gaps & Concerns:**\\n* [1 short sentence on a missing skill or red flag]\\n* [1 short sentence on another gap]",
   "overall_score_percentage": [Integer from 0 to 100],
-  "rejected_status": ["YOE" | "BUDGET" | "LOCATION" | "NOTICE_PERIOD"],
-  "rejected_reason": "[Single brief sentence explaining all identified rejection reasons combined]" | null
+  "rejected_status": ["YOE" | "BUDGET" | "LOCATION" | "NOTICE_PERIOD" | "NONE"],
+  "rejected_reason": "[Single brief sentence explaining all identified rejection reasons combined]" | NONE
 }
 </output_schema>
 """
-    # 2. Force the human message to demand strict brevity
+
     human_message = f"""
 Evaluate this candidate. Be highly critical, punchy, and concise. Keep bullets to single sentences.
 

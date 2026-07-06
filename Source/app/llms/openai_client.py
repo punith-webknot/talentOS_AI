@@ -1,9 +1,16 @@
+import logging
+
 from langchain_openai import ChatOpenAI
 
-from app.api.schemas import SupervisorResponse
+from Source.app.config.settings import Settings
 
-def get_supervisor_llm():
+logger = logging.getLogger(__name__)
+
+
+def create_openai_model(settings: Settings, model_name: str | None = None) -> ChatOpenAI:
+    resolved_model = model_name or settings.model_name
+    logger.info("Initializing OpenAI chat model '%s'", resolved_model)
     return ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-    ).with_structured_output(SupervisorResponse)
+        model=resolved_model,
+        api_key=settings.openai_api_key,
+    )

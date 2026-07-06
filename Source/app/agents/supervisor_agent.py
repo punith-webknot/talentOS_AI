@@ -1,59 +1,34 @@
-from typing import Literal
+import logging
 
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.graph import END
-from langgraph.types import Command
+from langchain.agents import create_agent
+from langchain.agents.middleware import SummarizationMiddleware
 
-from app.llms.openai_client import get_supervisor_llm
-from app.prompts.supervisor import SUPERVISOR_PROMPT
-from app.state.graph_state import GraphState
-from dotenv import load_dotenv
+from Source.app.agents.context import AgentContext
+from Source.app.llms.factory import get_model
+from Source.app.prompts.supervisor_agent_prompt import SUPERVISOR_PROMPT
 
-load_dotenv()
-
-llm = get_supervisor_llm()
+logger = logging.getLogger(__name__)
 
 
-def supervisor(
-    state: GraphState,
-) -> Command[
-    Literal[
-        "jd_creation_agent",
-        "interview_scheduler_agent",
-        "__end__",
-    ]
-]:
-    prompt = ChatPromptTemplate.from_template(SUPERVISOR_PROMPT)
-    chain = prompt | llm
-
-    conversation_history = state.get("messages", [])
-
-    response = chain.invoke(
-        {
-            "conversation": "\n".join(conversation_history),
-        }
-    )
-
-    if response.next_agent == "jd_creation_agent":
-        return Command(
-            update={
-                "next_agent": "jd_creation_agent",
-            },
-            goto="jd_creation_agent",
+def create_supervisor_agent(job_tool, checkpointer):
+    try:
+        model = get_model()
+        return create_agent(
+            model,
+            tools=[job_tool],
+            context_schema=AgentContext,
+            system_prompt=SUPERVISOR_PROMPT,
+            middleware=[
+                SummarizationMiddleware(
+                    model=model,
+                    trigger={"tokens": 200000, "messages": 50},
+                    keep=("messages", 30),
+                )
+            ],
+            checkpointer=checkpointer,
         )
+    except Exception:
+        logger.exception("Failed to create supervisor agent.")
+        raise
 
-    if response.next_agent == "interview_scheduler_agent":
-        return Command(
-            update={
-                "next_agent": "interview_scheduler_agent",
-            },
-            goto="interview_scheduler_agent",
-        )
 
-    return Command(
-        update={
-            "messages": conversation_history + response.messages,
-            "next_agent": "END",
-        },
-        goto=END,
-    )

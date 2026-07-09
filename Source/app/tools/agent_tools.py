@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def get_job_agent_tool(job_agent_instance):
     """Factory to create the job agent tool with an injected agent instance."""
 
-    @tool
-    async def job_agent_tool(request: str, runtime: ToolRuntime[AgentContext]) -> str:
+    @tool("job_agent")
+    async def job_agent(request: str, runtime: ToolRuntime[AgentContext]) -> str:
         """Delegate to the JD Management Agent for job descriptions and job postings."""
         human_messages = [m for m in runtime.state["messages"] if m.type == "human"]
         latest_user_message = human_messages[-1].content if human_messages else request
@@ -27,10 +27,39 @@ def get_job_agent_tool(job_agent_instance):
             )
             return result["messages"][-1].content
         except Exception:
-            logger.exception("job_agent_tool failed for thread_id=%s", runtime.context.thread_id)
+            logger.exception("job_agent failed for thread_id=%s", runtime.context.thread_id)
             return (
                 "The job management service is temporarily unavailable right now. "
                 "Please retry your request in a few moments."
             )
 
-    return job_agent_tool
+    return job_agent
+
+
+def get_slots_agent_tool(slots_agent_instance):
+    """Factory to create the slots agent tool with an injected agent instance."""
+
+    @tool("slots_agent")
+    async def slots_agent(request: str, runtime: ToolRuntime[AgentContext]) -> str:
+        """Delegate to the Slots Agent for interview slot forms, form status, and employee availability."""
+        human_messages = [m for m in runtime.state["messages"] if m.type == "human"]
+        latest_user_message = human_messages[-1].content if human_messages else request
+        prompt = (
+            f"User's latest message:\n{latest_user_message}\n\n"
+            f"Delegated task:\n{request}"
+        )
+
+        try:
+            result = await slots_agent_instance.ainvoke(
+                {"messages": [{"role": "user", "content": prompt}]},
+                config={"configurable": {"thread_id": f"{runtime.context.thread_id}-slots"}},
+            )
+            return result["messages"][-1].content
+        except Exception:
+            logger.exception("slots_agent failed for thread_id=%s", runtime.context.thread_id)
+            return (
+                "The slots management service is temporarily unavailable right now. "
+                "Please retry your request in a few moments."
+            )
+
+    return slots_agent

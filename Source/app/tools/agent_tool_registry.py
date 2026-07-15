@@ -16,6 +16,8 @@ JOB_AGENT_TOOL_NAMES = frozenset(
         "delete_job",
         "list_applications",
         "get_application_by_id",
+        "get_users",
+        "get_user_by_emp_id",
     }
 )
 
@@ -24,12 +26,25 @@ SLOTS_AGENT_TOOL_NAMES = frozenset(
         "ask_form",
         "get_employee_slots",
         "get_employee_form_status",
+        "book_interview",
+        "get_interviews",
+        "get_interview_detail",
+    }
+)
+
+REVIEW_ALERT_AGENT_TOOL_NAMES = frozenset(
+    {
+        "get_rounds",
+        "get_round_details",
+        "get_alerts",
+        "read_alert",
+        "notify_alert",
     }
 )
 
 SUPERVISOR_AGENT_TOOL_NAMES = frozenset(
     {
-        "send_email",
+        "send_mail",
     }
 )
 

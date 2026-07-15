@@ -63,3 +63,38 @@ def get_slots_agent_tool(slots_agent_instance):
             )
 
     return slots_agent
+
+
+def get_review_alert_agent_tool(review_alert_agent_instance):
+    """Factory to create the review/alert agent tool with an injected agent instance."""
+
+    @tool("review_alert_agent")
+    async def review_alert_agent(request: str, runtime: ToolRuntime[AgentContext]) -> str:
+        """Delegate to the Review & Alert Agent for interview rounds, reviews, and alerts."""
+        human_messages = [m for m in runtime.state["messages"] if m.type == "human"]
+        latest_user_message = human_messages[-1].content if human_messages else request
+        prompt = (
+            f"User's latest message:\n{latest_user_message}\n\n"
+            f"Delegated task:\n{request}"
+        )
+
+        try:
+            result = await review_alert_agent_instance.ainvoke(
+                {"messages": [{"role": "user", "content": prompt}]},
+                config={
+                    "configurable": {
+                        "thread_id": f"{runtime.context.thread_id}-review-alert"
+                    }
+                },
+            )
+            return result["messages"][-1].content
+        except Exception:
+            logger.exception(
+                "review_alert_agent failed for thread_id=%s", runtime.context.thread_id
+            )
+            return (
+                "The review and alert service is temporarily unavailable right now. "
+                "Please retry your request in a few moments."
+            )
+
+    return review_alert_agent

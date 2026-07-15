@@ -10,17 +10,23 @@ from fastapi.responses import JSONResponse
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from Source.app.agents.job_agent import create_job_agent
+from Source.app.agents.review_alert_agent import create_review_alert_agent
 from Source.app.agents.slots_agent import create_slots_agent
 from Source.app.agents.supervisor_agent import create_supervisor_agent
 from Source.app.api.router import api_router
 from Source.app.config.settings import get_settings
 from Source.app.tools.agent_tool_registry import (
     JOB_AGENT_TOOL_NAMES,
+    REVIEW_ALERT_AGENT_TOOL_NAMES,
     SLOTS_AGENT_TOOL_NAMES,
     SUPERVISOR_AGENT_TOOL_NAMES,
     select_tools,
 )
-from Source.app.tools.agent_tools import get_job_agent_tool, get_slots_agent_tool
+from Source.app.tools.agent_tools import (
+    get_job_agent_tool,
+    get_review_alert_agent_tool,
+    get_slots_agent_tool,
+)
 from Source.app.tools.mcp_client import create_mcp_client, open_mcp_session
 
 
@@ -63,25 +69,33 @@ async def lifespan(app: FastAPI):
 
                 job_tools = select_tools(mcp_tools, JOB_AGENT_TOOL_NAMES)
                 slots_tools = select_tools(mcp_tools, SLOTS_AGENT_TOOL_NAMES)
+                review_alert_tools = select_tools(mcp_tools, REVIEW_ALERT_AGENT_TOOL_NAMES)
                 supervisor_mcp_tools = select_tools(mcp_tools, SUPERVISOR_AGENT_TOOL_NAMES)
 
                 job_agent = create_job_agent(job_tools, checkpointer)
                 slots_agent = create_slots_agent(slots_tools, checkpointer)
+                review_alert_agent = create_review_alert_agent(
+                    review_alert_tools, checkpointer
+                )
                 supervisor_tools = [
                     *supervisor_mcp_tools,
                     get_job_agent_tool(job_agent),
                     get_slots_agent_tool(slots_agent),
+                    get_review_alert_agent_tool(review_alert_agent),
                 ]
                 logger.info(
-                    "job_agent tools=%s | slots_agent tools=%s | supervisor tools=%s",
+                    "job_agent tools=%s | slots_agent tools=%s | "
+                    "review_alert_agent tools=%s | supervisor tools=%s",
                     [t.name for t in job_tools],
                     [t.name for t in slots_tools],
+                    [t.name for t in review_alert_tools],
                     [t.name for t in supervisor_tools],
                 )
                 supervisor_agent = create_supervisor_agent(supervisor_tools, checkpointer)
 
                 app.state.job_agent = job_agent
                 app.state.slots_agent = slots_agent
+                app.state.review_alert_agent = review_alert_agent
                 app.state.supervisor_agent = supervisor_agent
                 started = True
                 logger.info("Application startup complete.")

@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 
 from Source.app.agents.job_agent import create_job_agent
 from Source.app.agents.review_alert_agent import create_review_alert_agent
@@ -63,7 +64,13 @@ async def lifespan(app: FastAPI):
             )
 
             logger.info("Connecting to Postgres checkpointer.")
-            async with AsyncPostgresSaver.from_conn_string(settings.database_uri) as checkpointer:
+            pool = AsyncConnectionPool(
+                settings.database_uri,
+                min_size=1,
+                max_size=4,
+            )
+            async with pool:
+                checkpointer = AsyncPostgresSaver(pool)
                 await checkpointer.setup()
                 logger.info("Postgres checkpointer initialized.")
 

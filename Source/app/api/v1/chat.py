@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -18,12 +18,89 @@ class ChatRequest(BaseModel):
     thread_id: str = "1"
 
 
+def _preprocess_command_execution(message: str) -> str:
+    try:
+        parsed = json.loads(message)
+    except (json.JSONDecodeError, TypeError):
+        return message
+
+    if not isinstance(parsed, dict) or parsed.get("message_type") != "COMMAND_EXECUTION":
+        return message
+
+    intent = parsed.get("intent")
+    payload: dict[str, Any] = parsed.get("payload", {})
+    raw_text = payload.pop("raw_text_context", "")
+
+    if intent == "book-interview":
+        for key in list(payload.keys()):
+            if key.endswith(("_name", "_title", "_label")):
+                del payload[key]
+        parts = ["Please book an interview with the following details:"]
+        for key, value in payload.items():
+            parts.append(f"  - {key}: {json.dumps(value)}")
+        if raw_text:
+            parts.append(f"\nAdditional context from user: {raw_text}")
+        parts.append("\nAll required fields are provided above. Call book_interview with these values.")
+        return "\n".join(parts)
+
+    if intent == "interviews":
+        interview_id = payload.get("interview_id", "")
+        parts = [f"The user is asking about interview {interview_id}."]
+        if raw_text:
+            parts.append(f"\nUser's question: {raw_text}")
+        parts.append("\nUse get_interview_detail to look up the interview and answer the user's question.")
+        return "\n".join(parts)
+
+    if intent == "rounds":
+        round_id = payload.get("round_id", "")
+        candidate_id = payload.get("candidate_id", "")
+        parts = [f"The user is asking about round {round_id}."]
+        if candidate_id:
+            parts.append(f"\nThe candidate id is {candidate_id}.")
+        if raw_text:
+            parts.append(f"\nUser's question: {raw_text}")
+        parts.append("\nUse get_round_details to look up the round and answer the user's question.")
+        return "\n".join(parts)
+
+    if intent == "alerts":
+        for key in list(payload.keys()):
+            if key.endswith(("_name", "_title", "_label")):
+                del payload[key]
+        alert_id = payload.get("alert_id", "")
+        alert_type = payload.get("alert_type", "")
+        employee_id = payload.get("employee_id") or payload.get("userId") or ""
+        parts = [f"The user is asking about alert {alert_id} (type: {alert_type})."]
+        if employee_id:
+            parts.append(f"The employee user ID for this alert is {employee_id}.")
+        if raw_text:
+            parts.append(f"\nUser's question: {raw_text}")
+        parts.append("\nUse notify_alert with the employee user_id to send the notification.")
+        return "\n".join(parts)
+
+    if intent == "SEND_MAIL":
+        for key in list(payload.keys()):
+            if key.endswith(("_name", "_title", "_label")):
+                del payload[key]
+        employee_name = payload.get("employee_name", "")
+        employee_email = payload.get("employee_email", "")
+        parts = [f"The user wants to send an email to {employee_name}."]
+        if employee_email:
+            parts.append(f"The recipient's email address is {employee_email}.")
+        if raw_text:
+            parts.append(f"\nUser's message: {raw_text}")
+        parts.append("\nUse send_mail to send the email.")
+        return "\n".join(parts)
+
+    return message
+
+
 async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> AsyncGenerator[str, None]:
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     context = AgentContext(thread_id=thread_id)
+    resolved_query = _preprocess_command_execution(user_query)
 
     async for chunk in supervisor_agent.astream(
-        {"messages": [{"role": "user", "content": user_query}]},
+        {"messages": [{"role": "user", "content": resolved_query}]},
         config=config,
         context=context,
         stream_mode=["messages"],

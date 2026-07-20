@@ -1,12 +1,37 @@
 import os
+from typing import Literal, List
+
 from langchain_openai import ChatOpenAI
 from langchain.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+class RejectionDetailItem(BaseModel):
+    criterion: Literal["YOE", "BUDGET", "LOCATION", "NOTICE_PERIOD"] = Field(
+        description="The disqualification criterion tag that the candidate failed."
+    )
+    JD: str = Field(
+        description="What was required for this criterion in the JD or custom evaluation criteria."
+    )
+    Candidate: str = Field(
+        description="What the candidate has or stated in their resume for this criterion."
+    )
+
 
 class ResumeEvaluation(BaseModel):
     """A resume evaluation with details."""
     resume_summary: str = Field(description="A detailed, objective paragraph that summarizes the candidate's background, explicitly evaluates them against the provided Custom Evaluation Criteria, and calls out any major missing skills or red flags.")
     overall_score_percentage: int = Field(description="An integer from 0 to 100 representing the holistic fit")
+    rejection_details: List[RejectionDetailItem] = Field(
+        default_factory=list,
+        description="One entry per failed disqualification criterion, each with JD vs Candidate values. "
+        "Leave as an empty list [] if the candidate passes all baseline parameters."
+    )
+
+    @field_serializer("rejection_details")
+    def serialize_rejection_details(
+        self, value: List[RejectionDetailItem]
+    ) -> List[dict[str, dict[str, str]]]:
+        return [{item.criterion: {"JD": item.JD, "Candidate": item.Candidate}} for item in value]
 
 os.environ["OPENAI_API_KEY"] = ""
 
@@ -23,14 +48,43 @@ def evaluate_resume(resume_txt :str, custom_evaluation_criteria :str, jd_details
 3. EXTREME SCANNABILITY: HR professionals are skimming this. The summary MUST be formatted using Markdown. You must use bullet points, bold text, and a rigid structure (Overview, Strong Matches, Gaps/Red Flags). Do not output a dense wall of text.
 </core_directives>
 
+<priority_disqualification_rules>
+Evaluate the custom criteria with absolute priority. Populate `rejection_details` if any disqualification applies:
+1. YOE: If experience is outside the required range, add an entry with criterion "YOE", JD = required range, Candidate = candidate's experience.
+2. BUDGET: If expected compensation exceeds budget, add criterion "BUDGET" with JD = budget limit and Candidate = candidate expectation.
+3. LOCATION: If location fails and candidate won't relocate, add criterion "LOCATION" with JD = required location and Candidate = candidate location/stance.
+4. NOTICE_PERIOD: If notice period exceeds limit, add criterion "NOTICE_PERIOD" with JD = max allowed and Candidate = candidate's notice period.
+
+Include one entry per failed criterion. If all pass, `rejection_details` MUST be [].
+</priority_disqualification_rules>
+
 <output_schema>
 You MUST return your entire response as a valid, parsable JSON object. Do not include markdown blocks like ```json outside the object. 
 
 The JSON must exactly match this structure:
 {
-  "resume_summary": "A Markdown-formatted evaluation. It MUST follow this exact structure:\n\n**Overview:** [1 sentence summarizing the candidate's core profile]\n\n**Strong Matches:**\n* [Bullet 1 evaluating specific criteria]\n* [Bullet 2 evaluating specific criteria]\n\n**Gaps & Concerns:**\n* [Bullet 1 calling out missing criteria or red flags]\n* [Bullet 2 calling out missing criteria or red flags]",
-  "overall_score_percentage": [Integer from 0 to 100 representing the holistic fit]
+  "resume_summary": "A Markdown-formatted evaluation. It MUST follow this exact structure:\\n\\n**Overview:** [1 sentence summarizing the candidate's core profile]\\n\\n**Strong Matches:**\\n* [Bullet 1 evaluating specific criteria]\\n* [Bullet 2 evaluating specific criteria]\\n\\n**Gaps & Concerns:**\\n* [Bullet 1 calling out missing criteria or red flags]\\n* [Bullet 2 calling out missing criteria or red flags]",
+  "overall_score_percentage": [Integer from 0 to 100 representing the holistic fit],
+  "rejection_details": [
+    {
+      "criterion": "YOE",
+      "JD": "[Required value from JD or custom criteria]",
+      "Candidate": "[Candidate's corresponding value]"
+    },
+    {
+      "criterion": "LOCATION",
+      "JD": "[Required location from JD or custom criteria]",
+      "Candidate": "[Candidate's location or relocation stance]"
+    },
+    {
+      "criterion": "BUDGET",
+      "JD": "[Budget limit from JD or custom criteria]",
+      "Candidate": "[Candidate's expected compensation]"
+    }
+  ]
 }
+
+If no disqualifications apply, `rejection_details` MUST be []. Include only criteria the candidate actually failed — one object per failure (e.g. if only YOE and BUDGET fail, return two entries).
 </output_schema>
     """
 

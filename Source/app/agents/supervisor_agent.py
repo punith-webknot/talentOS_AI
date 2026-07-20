@@ -10,12 +10,12 @@ from Source.app.prompts.supervisor_agent_prompt import SUPERVISOR_PROMPT
 logger = logging.getLogger(__name__)
 
 
-def create_supervisor_agent(job_tool, checkpointer):
+def create_supervisor_agent(tools: list, checkpointer):
     try:
         model = get_model()
         return create_agent(
             model,
-            tools=[job_tool],
+            tools=tools,
             context_schema=AgentContext,
             system_prompt=SUPERVISOR_PROMPT,
             middleware=[

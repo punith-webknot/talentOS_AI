@@ -11,4 +11,4 @@ COPY Source/ ./Source/
 
 EXPOSE 8003
 
-CMD ["uv", "run", "uvicorn", "Source.app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]
+CMD ["uv", "run", "uvicorn", "Source.app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload", "--reload-dir", "Source"]

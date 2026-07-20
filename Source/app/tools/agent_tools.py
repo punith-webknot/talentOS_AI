@@ -70,7 +70,7 @@ def get_review_alert_agent_tool(review_alert_agent_instance):
 
     @tool("review_alert_agent")
     async def review_alert_agent(request: str, runtime: ToolRuntime[AgentContext]) -> str:
-        """Delegate to the Review & Alert Agent for interview rounds, reviews, and alerts."""
+        """Delegate to the Review & Alert Agent for interview rounds, reviews, verdicts, and alerts."""
         human_messages = [m for m in runtime.state["messages"] if m.type == "human"]
         latest_user_message = human_messages[-1].content if human_messages else request
         prompt = (

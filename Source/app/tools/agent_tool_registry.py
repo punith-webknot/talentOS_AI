@@ -36,6 +36,9 @@ REVIEW_ALERT_AGENT_TOOL_NAMES = frozenset(
     {
         "get_rounds",
         "get_round_details",
+        "shortlist_round",
+        "reject_round",
+        "set_final_verdict",
         "get_alerts",
         "read_alert",
         "notify_alert",

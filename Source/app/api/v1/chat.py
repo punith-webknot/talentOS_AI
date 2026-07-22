@@ -94,10 +94,68 @@ def _preprocess_command_execution(message: str) -> str:
     return message
 
 
+UI_EDITABLE_START = "[[UI:EDITABLE]]"
+UI_EDITABLE_END = "[[/UI:EDITABLE]]"
+
+
+def _partial_marker_suffix(text: str, marker: str) -> int:
+    """Return length of a trailing prefix of `marker` present at the end of `text`."""
+    max_check = min(len(text), len(marker) - 1)
+    for size in range(max_check, 0, -1):
+        if marker.startswith(text[-size:]):
+            return size
+    return 0
+
+
+class _EditableUiStreamParser:
+    """Split streamed text so only content between UI markers is marked EDITABLE."""
+
+    def __init__(self) -> None:
+        self._inside = False
+        self._buf = ""
+
+    def reset(self) -> None:
+        self._inside = False
+        self._buf = ""
+
+    def feed(self, text: str) -> list[tuple[str, bool]]:
+        self._buf += text
+        segments: list[tuple[str, bool]] = []
+
+        while self._buf:
+            marker = UI_EDITABLE_END if self._inside else UI_EDITABLE_START
+            idx = self._buf.find(marker)
+            if idx == -1:
+                keep = _partial_marker_suffix(self._buf, marker)
+                emit = self._buf[:-keep] if keep else self._buf
+                self._buf = self._buf[-keep:] if keep else ""
+                if emit:
+                    segments.append((emit, self._inside))
+                break
+
+            before = self._buf[:idx]
+            if before:
+                segments.append((before, self._inside))
+            self._buf = self._buf[idx + len(marker) :]
+            if self._buf.startswith("\n"):
+                self._buf = self._buf[1:]
+            self._inside = not self._inside
+
+        return segments
+
+    def flush(self) -> list[tuple[str, bool]]:
+        if not self._buf:
+            return []
+        leftover = self._buf
+        self._buf = ""
+        return [(leftover, self._inside)]
+
+
 async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> AsyncGenerator[str, None]:
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     context = AgentContext(thread_id=thread_id)
     resolved_query = _preprocess_command_execution(user_query)
+    ui_parser = _EditableUiStreamParser()
 
     async for chunk in supervisor_agent.astream(
         {"messages": [{"role": "user", "content": resolved_query}]},
@@ -110,13 +168,28 @@ async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> 
             token, metadata = chunk["data"]
             if isinstance(token, AIMessageChunk):
                 if token.tool_call_chunks:
+                    ui_parser.reset()
                     for tc in token.tool_call_chunks:
                         if tc.get("name") is not None:
                             yield json.dumps({"type": "stream", "steps": [{"type": "tool_name", "content": tc["name"]}], "final": []}) + "\n"
                         if tc.get("args") is not None and tc["args"] != "":
                             yield json.dumps({"type": "stream", "steps": [{"type": "tool_args", "content": tc["args"]}], "final": []}) + "\n"
                 elif token.text:
-                    yield json.dumps({"type": "stream", "steps": [], "final": [{"type": "markdown", "content": token.text}]}) + "\n"
+                    for content, editable in ui_parser.feed(token.text):
+                        if not content:
+                            continue
+                        final_item: dict[str, Any] = {"type": "markdown", "content": content}
+                        if editable:
+                            final_item["ui"] = "EDITABLE"
+                        yield json.dumps({"type": "stream", "steps": [], "final": [final_item]}) + "\n"
+
+    for content, editable in ui_parser.flush():
+        if not content:
+            continue
+        final_item: dict[str, Any] = {"type": "markdown", "content": content}
+        if editable:
+            final_item["ui"] = "EDITABLE"
+        yield json.dumps({"type": "stream", "steps": [], "final": [final_item]}) + "\n"
 
 
 @router.post("/stream")

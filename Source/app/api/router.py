@@ -6,4 +6,4 @@ from Source.app.api.v1.evaluation import router as evaluation_router
 api_router = APIRouter(prefix="/api/v1")
 
 api_router.include_router(chat_router, prefix="/chat", tags=["Chat & Streaming"])
-api_router.include_router(evaluation_router, prefix="/evaluation", tags=["Resume Evaluation"])
+api_router.include_router(evaluation_router, prefix="/evaluation", tags=["Evaluation"])

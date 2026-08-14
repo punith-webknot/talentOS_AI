@@ -26,16 +26,16 @@ def get_evaluation_model() -> BaseChatModel:
     global _evaluation_model, _evaluation_model_name
 
     settings = get_settings()
-    if _evaluation_model is None or _evaluation_model_name != settings.evaluation_model_name:
-        _evaluation_model = create_openai_model(settings, settings.evaluation_model_name)
-        _evaluation_model_name = settings.evaluation_model_name
+    if _evaluation_model is None or _evaluation_model_name != settings.active_evaluation_model_name:
+        _evaluation_model = create_openai_model(settings, settings.active_evaluation_model_name)
+        _evaluation_model_name = settings.active_evaluation_model_name
 
     return _evaluation_model
 
 
 def get_structured_model(schema: type[T]) -> object:
-    return get_model().with_structured_output(schema)
+    return get_model().with_structured_output(schema, method="function_calling")
 
 
 def get_evaluation_structured_model(schema: type[T]) -> object:
-    return get_evaluation_model().with_structured_output(schema)
+    return get_evaluation_model().with_structured_output(schema, method="function_calling")

@@ -1,9 +1,11 @@
 import os
 from typing import Literal, List
 
-from langchain_openai import ChatOpenAI
 from langchain.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_serializer
+
+from Source.app.config.settings import get_settings
+from Source.app.llms.openai_client import create_openai_model
 
 class RejectionDetailItem(BaseModel):
     criterion: Literal["YOE", "BUDGET", "LOCATION", "NOTICE_PERIOD"] = Field(
@@ -33,9 +35,9 @@ class ResumeEvaluation(BaseModel):
     ) -> List[dict[str, dict[str, str]]]:
         return [{item.criterion: {"JD": item.JD, "Candidate": item.Candidate}} for item in value]
 
-os.environ["OPENAI_API_KEY"] = ""
+os.environ.setdefault("LLM_PROVIDER", "groq")
 
-model = ChatOpenAI(model="gpt-4.1-mini")
+model = create_openai_model(get_settings(), get_settings().active_evaluation_model_name)
 
 def evaluate_resume(resume_txt :str, custom_evaluation_criteria :str, jd_details :str) -> dict:
 

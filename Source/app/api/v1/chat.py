@@ -1,6 +1,6 @@
 import json
 from typing import Any, AsyncGenerator
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from langchain.messages import AIMessageChunk
@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 
 from Source.app.agents.context import AgentContext
 from Source.app.api.dependencies import get_supervisor_agent
+from Source.app.tools.mcp_client import set_current_user_auth
 
 router = APIRouter()
 
@@ -151,9 +152,14 @@ class _EditableUiStreamParser:
         return [(leftover, self._inside)]
 
 
-async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> AsyncGenerator[str, None]:
+async def event_generator(
+    user_query: str,
+    thread_id: str,
+    supervisor_agent,
+    authorization: str | None = None,
+) -> AsyncGenerator[str, None]:
     config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
-    context = AgentContext(thread_id=thread_id)
+    context = AgentContext(thread_id=thread_id, user_auth=authorization)
     resolved_query = _preprocess_command_execution(user_query)
     ui_parser = _EditableUiStreamParser()
 
@@ -195,10 +201,17 @@ async def event_generator(user_query: str, thread_id: str, supervisor_agent) -> 
 @router.post("/stream")
 async def stream_chat_endpoint(
     payload: ChatRequest,
+    authorization: str | None = Header(default=None),
     supervisor_agent=Depends(get_supervisor_agent),
 ):
     """Exposes real-time agent generation streaming."""
+    set_current_user_auth(authorization)
     return StreamingResponse(
-        event_generator(payload.message, payload.thread_id, supervisor_agent),
+        event_generator(
+            payload.message,
+            payload.thread_id,
+            supervisor_agent,
+            authorization=authorization,
+        ),
         media_type="application/x-ndjson"
     )

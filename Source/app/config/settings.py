@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from typing import Literal, Self
 
+from dotenv import load_dotenv
 from pydantic import ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -31,8 +32,8 @@ DEFAULT_MODELS: dict[str, dict[str, str]] = {
         "evaluation": "gpt-5.4-nano",
     },
     "groq": {
-        "model": "llama-3.3-70b-versatile",
-        "evaluation": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-120b",
+        "evaluation": "openai/gpt-oss-20b",
     },
 }
 
@@ -59,6 +60,14 @@ class Settings(BaseSettings):
     groq_base_url: str = GROQ_BASE_URL
     mcp_url: str
     database_uri: str
+
+    bao_addr: str = ""
+    bao_token: str = ""
+    bao_token_file: str = ""
+    bao_kv_mount: str = "secret"
+    bao_kv_path: str = "ai"
+    bao_required: bool = False
+    bao_secret_keys: str = ""
 
     @property
     def active_api_key(self) -> str:
@@ -131,6 +140,9 @@ def _load_openbao_into_environ() -> None:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    # Load the local .env into the environment first so BAO_ADDR / BAO_TOKEN_FILE
+    # are visible to _load_openbao_into_environ() (which runs before Settings()).
+    load_dotenv(_resolve_env_file())
     _load_openbao_into_environ()
     try:
         return Settings()

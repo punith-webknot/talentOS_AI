@@ -16,7 +16,7 @@ The service supports multiple LLM providers via `LLM_PROVIDER` in `.env`:
 - Model names fall back to per-provider defaults when `MODEL_NAME` /
   `EVALUATION_MODEL_NAME` are unset:
   - OpenAI: `gpt-5.4-mini` / `gpt-5.4-nano`
-  - Groq: `llama-3.3-70b-versatile` / `llama-3.1-8b-instant`
+  - Groq: `openai/gpt-oss-120b` / `openai/gpt-oss-20b`
 
 ## Run locally
 
